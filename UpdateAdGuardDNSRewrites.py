@@ -10,7 +10,8 @@ from urllib.parse import urljoin
 from functools import wraps
 
 # Constants
-JSON_URL = "https://raw.githubusercontent.com/uklans/cache-domains/master/cache_domains.json"
+#JSON_URL = "https://raw.githubusercontent.com/uklans/cache-domains/master/cache_domains.json"
+JSON_URL = "https://raw.githubusercontent.com/uklans/cache-domains/refs/heads/master/cache_domains.json"
 LOG_FORMAT = '%(asctime)s\t%(levelname)s\t%(message)s'
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
 
@@ -197,7 +198,7 @@ def get_available_services_names(session: requests.Session, json_url: str) -> Li
 
 
 @exception_handler
-def get_file_list_from_json(session: requests.Session, json_url: str, specific_service_names: List[str]) -> List[str]:
+def get_file_list_from_json(session: requests.Session, json_url: str, specific_service_names: List[str],all_services) -> List[str]:
     """
     Fetches a list of file paths from a JSON file, filtering by specific service names if provided.
 
@@ -216,7 +217,7 @@ def get_file_list_from_json(session: requests.Session, json_url: str, specific_s
     file_paths = []
     if validate_json_structure(data, ['cache_domains']):
         for item in data['cache_domains']:
-            if item['name'] in specific_service_names:
+            if (item['name'] in specific_service_names or all_services == 'true'):
                 file_paths.extend(item['domain_files'])
     return file_paths
 
@@ -296,6 +297,7 @@ def main():
     try:
         # Fetch and validate configuration from environment variables
         fetch_all_services = get_env_variable('ALL_SERVICES', 'false', mandatory=False).lower() == 'true'
+        all_services = fetch_all_services
         specific_services_names_raw = get_env_variable('SERVICE_NAMES', '', mandatory=False)
         specific_services_names = get_specific_services_names(specific_services_names_raw)
 
@@ -351,7 +353,7 @@ def main():
     session = create_session(username, password)
 
     # Fetch and process file paths from JSON
-    file_paths = get_file_list_from_json(session, JSON_URL, specific_services_names)
+    file_paths = get_file_list_from_json(session, JSON_URL, specific_services_names,all_services)
     dns_rewrites = download_files_concurrently(session, file_paths, JSON_URL, lancache_server)
 
     # Update DNS rewrites
